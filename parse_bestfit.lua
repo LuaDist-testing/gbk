@@ -1,10 +1,7 @@
 -- download bestfit936.txt from:
 -- http://www.unicode.org/Public/MAPPINGS/VENDORS/MICSFT/WindowsBestFit/bestfit936.txt
-local CP      = arg[1] or "936"
-local NAME    = arg[2] or "gbk"
-local INVALID = tonumber(arg[3] or 0xFFFE)
-io.input("bestfit"..CP..".txt")
-io.output(NAME..".h")
+io.input "bestfit936.txt"
+io.output "gbk.h"
 
 local info = {}
 local cp_codes = {}
@@ -85,12 +82,12 @@ for line in io.lines() do
       break
    end
 
-   local dbcs, def_cp, def_uni =
+   local dbcs, def_gbk, def_uni =
       line:match "CPINFO%s+(%d+)%s+0x(%x+)%s+0x(%x+)"
    if dbcs then
-      info.dbcs, info.def_cp, info.def_uni =
+      info.dbcs, info.def_gbk, info.def_uni =
          tonumber(dbcs),
-         tonumber(def_cp, 16),
+         tonumber(def_gbk, 16),
          tonumber(def_uni, 16)
       goto next
    end
@@ -158,8 +155,7 @@ local function output_code(idx, cp)
    if idx % 8 == 7 then io.write "\n" end
 end
 
-local function write_tables(prefix, codes, maps, def)
-   def = def or INVALID
+local function write_tables(prefix, codes, maps)
    table.sort(codes)
    local leaders = {}
    local leader
@@ -169,7 +165,7 @@ local function write_tables(prefix, codes, maps, def)
       if cl ~= leader then
          if leader ~= nil then
             for i = last_cp + 1, (leader+1)*2^8-1 do
-               output_code(i, def)
+               output_code(i, 0xFFFE)
             end
             io.write "};\n\n"
          end
@@ -180,13 +176,13 @@ local function write_tables(prefix, codes, maps, def)
          last_cp = leader*2^8-1
       end
       for i = last_cp + 1, cp-1 do
-         output_code(i, def)
+         output_code(i, 0xFFFE)
       end
       output_code(cp, assert(maps[cp]))
       last_cp = cp
    end
    for i = last_cp + 1, (leader+1)*2^8-1 do
-      output_code(i, def)
+      output_code(i, 0xFFFE)
    end
    io.write "};\n\n"
 
@@ -203,20 +199,19 @@ local function write_tables(prefix, codes, maps, def)
 end
 
 io.write(([[
-#ifndef ]]..NAME..[[_h
-#define ]]..NAME..[[_h
+#ifndef gbk_h
+#define gbk_h
 
 #include <stddef.h>
 
-#define DBCS_DEFAULT_CODE     %#X
-#define UNI_DEFAULT_CODE      %#X
-#define UNI_INVALID_CODE      %#X
+#define GBK_DEFAULT_CP_CODE  %#x
+#define GBK_DEFAULT_UNI_CODE %#x
 
-]]):format(info.def_cp, info.def_uni, INVALID))
+]]):format(info.def_gbk, info.def_uni))
 
 write_tables("to_uni", cp_codes, from_cp)
-write_tables("from_uni", uni_codes, to_cp, info.def_cp)
+write_tables("from_uni", uni_codes, to_cp)
 
 
 
-io.write("#endif /* "..NAME.."_h */\n")
+io.write "#endif /* gbk_h */\n"
